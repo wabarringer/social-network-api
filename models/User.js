@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { Thought } = require("./Thought");
 
 function validateEmail(email) {
   let re = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/;
@@ -16,8 +17,9 @@ const userSchema = new mongoose.Schema(
     },
     thoughts: [
       {
-        type: Schema.Types.ObjectId,
-        ref: "thought",
+        // thought undefined
+        // TODO: Figure out how to reference
+        type: [thought],
       },
     ],
   },

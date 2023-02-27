@@ -1,16 +1,16 @@
 const { Schema, model } = require("mongoose");
+const { Reaction } = require("./Reaction");
 
 const thought = new Schema(
   {
     thought: { type: String },
     createdAt: { type: Date, default: Date.now },
-    meta: { reactions: Number },
+    reactions: [reaction],
   },
   {
     toJSON: {
       virtuals: true,
     },
-    id: false,
   }
 );
 
