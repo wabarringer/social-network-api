@@ -1,25 +1,23 @@
 const mongoose = require("mongoose");
+const { isEmail } = require("validator");
 
-function checkEmail(email) {
-  let regexEmailChecker = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/;
-  return regexEmailChecker.test(email);
-}
+const baseSchemaOptions = {
+  toJSON: {
+    getters: true,
+  },
+};
 
 const reaction = new mongoose.Schema(
   {
     reactionId: {
-      type: String,
-      default: new mongoose.Types.ObjectId().toString(),
+      type: mongoose.Types.ObjectId,
+      default: () => new mongoose.Types.ObjectId(),
     },
     reactionBody: { type: String, required: true, maxLength: 280 },
     username: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
   },
-  {
-    toJSON: {
-      virtuals: true,
-    },
-  }
+  baseSchemaOptions
 );
 
 const thought = new mongoose.Schema(
@@ -31,7 +29,7 @@ const thought = new mongoose.Schema(
   },
   {
     toJSON: {
-      virtuals: true,
+      getters: true,
     },
   }
 );
@@ -40,24 +38,22 @@ thought.virtual("formattedTime").get(function () {
   return this.createdAt.toLocaleString();
 });
 
-reaction.virtual("formattedTime").get(function () {
-  return this.createdAt.toLocaleString();
-});
-
-const user = new mongoose.Schema({
-  username: { type: String, required: true, unique: true, trim: true },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    validate: [checkEmail, "Please enter a valid email address."],
+const user = new mongoose.Schema(
+  {
+    username: { type: String, required: true, unique: true, trim: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      validate: [isEmail, "Please enter a valid email address."],
+    },
+    thoughts: [thought],
   },
-  thoughts: [thought],
-});
+  baseSchemaOptions
+);
 
-// Mongoose.model not a constructor???
-const User = new mongoose.model("User", user);
-const Thought = new mongoose.model("Thought", thought);
-const Reaction = new mongoose.moedel("Reaction", reaction);
+const User = mongoose.model("User", user);
+const Thought = mongoose.model("Thought", thought);
+const Reaction = mongoose.model("Reaction", reaction);
 
 module.exports = { User, Thought, Reaction };

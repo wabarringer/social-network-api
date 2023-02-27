@@ -2,11 +2,11 @@ const express = require("express");
 const { User, Thoughts } = require("../../models");
 const router = express.Router();
 
-// READ all
+// READ All
 router.get("/", async (req, res) => {
   try {
-    const thoughts = await Thoughts.find();
-    res.json(thoughts);
+    const foundThoughts = await Thoughts.find();
+    res.json(foundThoughts);
   } catch (err) {
     res.status(500).json({
       msg: "Server Error: Unable to get records",
@@ -15,136 +15,132 @@ router.get("/", async (req, res) => {
   }
 });
 
-// READ one
-router.get("/:id", async (req, res) => {
+// READ One
+router.get("/:id", async ({ params: { id } }, res) => {
   try {
-    const thought = await Thoughts.findOne({
-      _id: req.params.id,
-    });
+    const thought = await Thoughts.findById(id);
     if (!thought) {
-      res.status(404).json({
-        msg: "Error: Record does not exist",
-      });
-    } else {
-      res.json(thought);
+      return res.status(404).json({ msg: "no such thought" });
     }
+    res.json(thought);
   } catch (err) {
     res.status(500).json({
-      msg: "Server Error: Unable to get record",
+      msg: "Server Error: Unable to get records",
       err,
     });
   }
 });
 
 // CREATE
-router.post("/", async (req, res) => {
+router.post("/", async ({ body: { thoughtText, username } }, res) => {
   try {
-    const newThought = await Thoughts.create({
-      thoughtText: req.body.thoughtText,
-      username: req.body.username,
-    });
-    if (newThought) {
-      const findOneUser = await User.findOne({
-        username: req.body.username,
-      });
-      if (!findOneUser) {
-        return res.status(404).json({
-          msg: "Error: Record does not exist",
-        });
-      }
-      let userThoughtArr = findOneUser.thoughts;
-      userThoughtArr.push(newThought);
-      res.json(findOneUser);
-    } else {
-      return res.status(500).json({
-        msg: "Error: Unable to create record",
+    const newThought = await Thoughts.create({ thoughtText, username });
+    const createUser = await User.findOne({ username });
+    if (!createUser) {
+      return res.status(404).json({
+        msg: "Error: Record does not exist",
       });
     }
+    const userThoughtArr = [...createUser.thoughts, newThought];
+    await User.findByIdAndUpdate(createUser._id, { thoughts: userThoughtArr });
+    res.json({ createUser, msg: "Record was successfully created" });
   } catch (err) {
     res.status(500).json({
-      msg: "Server Error: Unable to get record",
+      msg: "Server Error: Unable to get records",
       err,
     });
   }
 });
 
 // UPDATE
-router.put("/:id", async (req, res) => {
-  try {
-    const thoughUpdate = await Thoughts.findByIdAndUpdate(
-      { _id: req.params.id },
-      {
-        $set: {
-          thoughtText: req.body.thoughtText,
-          username: req.body.username,
-        },
+router.put(
+  "/:id",
+  async ({ params: { id }, body: { thoughtText, username } }, res) => {
+    try {
+      const thoughtUpdate = await Thoughts.findByIdAndUpdate(
+        id,
+        { thoughtText, username },
+        { new: true }
+      );
+      if (!thoughtUpdate) {
+        return res.status(404).json({
+          msg: "Error: Record does not exist",
+        });
       }
-    );
-    if (!thoughUpdate) {
-      res.status(404).json({
-        msg: "Error: Record does not exist",
+      res.json({ thoughtUpdate, msg: "Record was successfully updated" });
+    } catch (err) {
+      res.status(500).json({
+        msg: "Server Error: Unable to get records",
+        err,
       });
-    } else {
-      res.json(thoughUpdate);
     }
-  } catch (err) {
-    res.status(500).json({
-      msg: "Server Error: Unable to get record",
-      err,
-    });
   }
-});
+);
 
 // DELETE
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async ({ params: { id } }, res) => {
   try {
-    const deleteThought = await Thoughts.findByIdAndDelete(req.params.id);
+    const deleteThought = await Thoughts.findByIdAndDelete(id);
     if (!deleteThought) {
-      res.status(404).json({
+      return res.status(404).json({
         msg: "Error: Record does not exist",
       });
-    } else {
-      res.json(deleteThought);
     }
+    res.json({ deleteThought, msg: "Record was successfully deleted" });
   } catch (err) {
     res.status(500).json({
-      msg: "Server Error: Unable to get record",
+      msg: "Server Error: Unable to get records",
       err,
     });
   }
 });
 
-// CREATE reaction
+// CREATE Reaction
 router.post("/:thoughtId/reactions", async (req, res) => {
   try {
-    const foundThought = await Thoughts.findById(req.params.thoughtId);
-    if (!foundThought) {
-      res.status(404).json({ msg: "Error: Record does not exist" });
-    } else {
-      let reactionArr = foundThought.reactions;
-      let newReaction = {
-        reactionBody: req.body.reactionBody,
-        username: req.body.username,
-      };
-      await reactionArr.push(newReaction);
-      res.json(foundThought);
+    const thought = await Thoughts.findById(req.params.thoughtId);
+    if (!thought) {
+      return res.status(404).json({
+        msg: "Error: Record does not exist",
+      });
     }
+    const newReaction = {
+      reactionBody: req.body.reactionBody,
+      username: req.body.username,
+    };
+
+    thought.reactions.push(newReaction);
+    const savedThought = await thought.save();
+
+    res.json({ savedThought, msg: "Record was successfully created" });
   } catch (err) {
-    res.status(500).json({ msg: "Server Error: Unable to get record", err });
+    res.status(500).json({
+      msg: "Server Error: Unable to get records",
+      err,
+    });
   }
 });
 
-// DELETE reaction
+// DELETE Reaction
 router.delete("/:thoughtId/reactions/:reactionId", async (req, res) => {
   try {
-    const foundThought = await Thoughts.findByIdAndUpdate(
+    const thought = await Thoughts.findByIdAndUpdate(
       { _id: req.params.thoughtId },
-      { $pull: { reactions: { _id: req.params.reactionId } } }
+      { $pull: { reactions: { _id: req.params.reactionId } } },
+      { new: true }
     );
+    if (!thought) {
+      return res.status(404).json({
+        msg: "Error: Record does not exist",
+      });
+    }
 
-    res.json(foundThought);
+    res.json({ thought, msg: "Record was successfully deleted" });
   } catch (err) {
-    res.status(500).json({ msg: "Server Error: Unable to get record", err });
+    res.status(500).json({
+      msg: "Server Error: Unable to get records",
+      err,
+    });
   }
 });
 

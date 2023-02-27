@@ -2,11 +2,20 @@ const express = require("express");
 const { User } = require("../../models");
 const router = express.Router();
 
-// READ all
+// READ all with pagination
 router.get("/", async (req, res) => {
   try {
-    const users = await User.find({});
-    res.json(users);
+    const limit = parseInt(req.query.limit) || 10;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+    const users = await User.find({}).skip(skip).limit(limit);
+    const count = await User.countDocuments();
+    res.json({
+      totalUsers: count,
+      currentPage: page,
+      totalPages: Math.ceil(count / limit),
+      users,
+    });
   } catch (err) {
     res.status(500).json({
       msg: "Server Error: Unable to get records",
@@ -43,7 +52,7 @@ router.post("/", async (req, res) => {
       username: req.body.username,
       email: req.body.email,
     });
-    res.json(newUser);
+    res.json({ newUser, msg: "Record was successfully created" });
   } catch (err) {
     res.status(500).json({
       msg: "Server Error: Unable to get records",
@@ -64,7 +73,7 @@ router.put("/:id", async (req, res) => {
         msg: "Error: Record does not exist",
       });
     } else {
-      res.json(userUpdate);
+      res.json({ userUpdate, msg: "Record was successfully updated" });
     }
   } catch (err) {
     res.status(500).json({
@@ -84,7 +93,7 @@ router.delete("/:id", async (req, res) => {
         msg: "Error: Record does not exist",
       });
     } else {
-      res.json(deleteUser);
+      res.json({ deleteUser, msg: "Record was successfully deleted" });
     }
   } catch (err) {
     res.status(500).json({
