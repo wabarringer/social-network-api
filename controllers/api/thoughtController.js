@@ -1,11 +1,11 @@
 const express = require("express");
-const { User, Thoughts } = require("../../models");
+const { User, Thought } = require("../../models");
 const router = express.Router();
 
 // READ All
 router.get("/", async (req, res) => {
   try {
-    const foundThoughts = await Thoughts.find();
+    const foundThoughts = await Thought.find();
     res.json(foundThoughts);
   } catch (err) {
     res.status(500).json({
@@ -18,9 +18,12 @@ router.get("/", async (req, res) => {
 // READ One
 router.get("/:id", async ({ params: { id } }, res) => {
   try {
-    const thought = await Thoughts.findById(id);
+    const thought = await Thought.findById(id);
     if (!thought) {
-      return res.status(404).json({ msg: "no such thought" });
+      return res.status(404).json({
+        msg: "Error: Record does not exist",
+        err,
+      });
     }
     res.json(thought);
   } catch (err) {
@@ -32,18 +35,48 @@ router.get("/:id", async ({ params: { id } }, res) => {
 });
 
 // CREATE
-router.post("/", async ({ body: { thoughtText, username } }, res) => {
+router.post("/", async (req, res) => {
   try {
-    const newThought = await Thoughts.create({ thoughtText, username });
-    const createUser = await User.findOne({ username });
-    if (!createUser) {
+    const newThought = await Thought.create({
+      thoughtText: req.body.thoughtText,
+      username: req.body.username,
+    });
+    if (newThought) {
+      const username = await User.findOne({
+        username: req.body.username,
+      });
+      if (!username) {
+        return res
+          .status(404)
+          .json({ msg: "Error: Record does not exist", err });
+      }
+      let userThoughtArr = username.thoughts;
+      userThoughtArr.push(newThought);
+      res.json({ username, msg: "Record was successfully created" });
+    }
+  } catch (err) {
+    res.status(500).json({ msg: "an error occurred", err });
+  }
+});
+
+// UPDATE
+router.put("/:id", async (req, res) => {
+  try {
+    const thoughtUpdate = await Thought.findByIdAndUpdate(
+      { _id: req.params.id },
+      {
+        $set: {
+          thoughtText: req.body.thoughtText,
+          new: false,
+        },
+      }
+    );
+    if (!thoughtUpdate) {
       return res.status(404).json({
         msg: "Error: Record does not exist",
       });
     }
-    const userThoughtArr = [...createUser.thoughts, newThought];
-    await User.findByIdAndUpdate(createUser._id, { thoughts: userThoughtArr });
-    res.json({ createUser, msg: "Record was successfully created" });
+    res.json({ thoughtUpdate, msg: "Record was successfully updated" });
   } catch (err) {
     res.status(500).json({
       msg: "Server Error: Unable to get records",
@@ -52,35 +85,10 @@ router.post("/", async ({ body: { thoughtText, username } }, res) => {
   }
 });
 
-// UPDATE
-router.put(
-  "/:id",
-  async ({ params: { id }, body: { thoughtText, username } }, res) => {
-    try {
-      const thoughtUpdate = await Thoughts.findByIdAndUpdate(
-        id,
-        { thoughtText, username },
-        { new: true }
-      );
-      if (!thoughtUpdate) {
-        return res.status(404).json({
-          msg: "Error: Record does not exist",
-        });
-      }
-      res.json({ thoughtUpdate, msg: "Record was successfully updated" });
-    } catch (err) {
-      res.status(500).json({
-        msg: "Server Error: Unable to get records",
-        err,
-      });
-    }
-  }
-);
-
 // DELETE
 router.delete("/:id", async ({ params: { id } }, res) => {
   try {
-    const deleteThought = await Thoughts.findByIdAndDelete(id);
+    const deleteThought = await Thought.findByIdAndDelete(id);
     if (!deleteThought) {
       return res.status(404).json({
         msg: "Error: Record does not exist",
@@ -98,14 +106,14 @@ router.delete("/:id", async ({ params: { id } }, res) => {
 // CREATE Reaction
 router.post("/:thoughtId/reactions", async (req, res) => {
   try {
-    const thought = await Thoughts.findById(req.params.thoughtId);
+    const thought = await Thought.findById(req.params.thoughtId);
     if (!thought) {
       return res.status(404).json({
         msg: "Error: Record does not exist",
       });
     }
     const newReaction = {
-      reactionBody: req.body.reactionBody,
+      reaction: req.body.reaction,
       username: req.body.username,
     };
 
@@ -124,7 +132,7 @@ router.post("/:thoughtId/reactions", async (req, res) => {
 // DELETE Reaction
 router.delete("/:thoughtId/reactions/:reactionId", async (req, res) => {
   try {
-    const thought = await Thoughts.findByIdAndUpdate(
+    const thought = await Thought.findByIdAndUpdate(
       { _id: req.params.thoughtId },
       { $pull: { reactions: { _id: req.params.reactionId } } },
       { new: true }

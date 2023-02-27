@@ -13,7 +13,7 @@ const reaction = new mongoose.Schema(
       type: mongoose.Types.ObjectId,
       default: () => new mongoose.Types.ObjectId(),
     },
-    reactionBody: { type: String, required: true, maxLength: 280 },
+    reaction: { type: String, required: true, maxLength: 280 },
     username: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
   },
@@ -27,11 +27,7 @@ const thought = new mongoose.Schema(
     createdAt: { type: Date, default: Date.now },
     reactions: [reaction],
   },
-  {
-    toJSON: {
-      getters: true,
-    },
-  }
+  baseSchemaOptions
 );
 
 thought.virtual("formattedTime").get(function () {
@@ -48,6 +44,12 @@ const user = new mongoose.Schema(
       validate: [isEmail, "Please enter a valid email address."],
     },
     thoughts: [thought],
+    friends: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user",
+      },
+    ],
   },
   baseSchemaOptions
 );

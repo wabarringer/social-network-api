@@ -52,7 +52,10 @@ router.post("/", async (req, res) => {
       username: req.body.username,
       email: req.body.email,
     });
-    res.json({ newUser, msg: "Record was successfully created" });
+    res.json({
+      newUser,
+      msg: "Record was successfully created",
+    });
   } catch (err) {
     res.status(500).json({
       msg: "Server Error: Unable to get records",
@@ -73,7 +76,10 @@ router.put("/:id", async (req, res) => {
         msg: "Error: Record does not exist",
       });
     } else {
-      res.json({ userUpdate, msg: "Record was successfully updated" });
+      res.json({
+        userUpdate,
+        msg: "Record was successfully updated",
+      });
     }
   } catch (err) {
     res.status(500).json({
@@ -93,8 +99,61 @@ router.delete("/:id", async (req, res) => {
         msg: "Error: Record does not exist",
       });
     } else {
-      res.json({ deleteUser, msg: "Record was successfully deleted" });
+      res.json({
+        deleteUser,
+        msg: "Record was successfully deleted",
+      });
     }
+  } catch (err) {
+    res.status(500).json({
+      msg: "Server Error: Unable to get records",
+      err,
+    });
+  }
+});
+
+// Add Friend
+router.post("/:userId/friends", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({
+        msg: "Error: Record does not exist",
+      });
+    }
+
+    user.friends.push(req.body.friendId);
+    const savedUser = await user.save();
+
+    res.json({
+      savedUser,
+      msg: "Record was successfully created",
+    });
+  } catch (err) {
+    res.status(500).json({
+      msg: "Server Error: Unable to get records",
+      err,
+    });
+  }
+});
+
+// DELETE Friend
+router.delete("/:userId/friends/:friendId", async (req, res) => {
+  try {
+    const deleteFriend = await User.findOneAndUpdate(
+      { _id: req.params.userId },
+      { $pull: { friends: req.params.friendId } },
+      { runValidators: true, new: true }
+    );
+    if (!deleteFriend) {
+      return res.status(404).json({
+        msg: "Error: Record does not exist",
+      });
+    }
+    res.json({
+      deleteFriend,
+      msg: "Record was successfully deleted",
+    });
   } catch (err) {
     res.status(500).json({
       msg: "Server Error: Unable to get records",
