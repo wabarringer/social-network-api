@@ -114,4 +114,38 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// CREATE reaction
+router.post("/:thoughtId/reactions", async (req, res) => {
+  try {
+    const foundThought = await Thoughts.findById(req.params.thoughtId);
+    if (!foundThought) {
+      res.status(404).json({ msg: "Error: Record does not exist" });
+    } else {
+      let reactionArr = foundThought.reactions;
+      let newReaction = {
+        reactionBody: req.body.reactionBody,
+        username: req.body.username,
+      };
+      await reactionArr.push(newReaction);
+      res.json(foundThought);
+    }
+  } catch (err) {
+    res.status(500).json({ msg: "Server Error: Unable to get record", err });
+  }
+});
+
+// DELETE reaction
+router.delete("/:thoughtId/reactions/:reactionId", async (req, res) => {
+  try {
+    const foundThought = await Thoughts.findByIdAndUpdate(
+      { _id: req.params.thoughtId },
+      { $pull: { reactions: { _id: req.params.reactionId } } }
+    );
+
+    res.json(foundThought);
+  } catch (err) {
+    res.status(500).json({ msg: "Server Error: Unable to get record", err });
+  }
+});
+
 module.exports = router;
